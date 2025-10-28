@@ -1,11 +1,13 @@
-include /usr/include/n64/make/PRdefs
+WORK_DIR := $(shell pwd)
+
+include $(WORK_DIR)/include/n64/make/PRdefs
 
 #Project name
 PROJECT = non_nusys_demo
 #Libultra directories
-LIB = $(ROOT)/usr/lib
+LIB = $(WORK_DIR)/lib/n64
 LPR = $(LIB)/PR
-INC = $(ROOT)/usr/include
+INC = $(WORK_DIR)/include/n64
 
 #Audio Library
 AUDIOLIB = -lmus
@@ -14,8 +16,8 @@ AUDIOLIB = -lmus
 OPTIMIZER = -O1
 LCDEFS = -DNDEBUG -D_FINALROM -DF3DEX_GBI_2
 N64LIB = -lultra_rom
-CFLAGS := $(CFLAGS) -DNDEBUG -D_FINALROM -DF3DEX_GBI_2 -G 0 -MMD -MP -Iinclude -I. -I$(NUSTDINCDIR) -I$(ROOT)/usr/include/PR -Wa,-Iinclude
-CXXFLAGS := $(CXXFLAGS) -DNDEBUG -D_FINALROM -DF3DEX_GBI_2 -MMD -MP -G 0 -std=c++17 -fno-builtin -fno-exceptions -fno-rtti -fno-use-cxa-atexit -Iinclude -I$(NUSYSINCDIR) -I$(NUSTDINCDIR) -I$(ROOT)/usr/include/PR
+CFLAGS := $(CFLAGS) -DNDEBUG -D_FINALROM -DF3DEX_GBI_2 -G 0 -MMD -MP -Iinclude -I. -I$(WORK_DIR)/include -I$(NUSTDINCDIR) -I$(WORK_DIR)/include/PR -Wa,-Iinclude
+CXXFLAGS := $(CXXFLAGS) -DNDEBUG -D_FINALROM -DF3DEX_GBI_2 -MMD -MP -G 0 -std=c++17 -fno-builtin -fno-exceptions -fno-rtti -fno-use-cxa-atexit -Iinclude -I$(WORK_DIR)/include -I$(NUSYSINCDIR) -I$(NUSTDINCDIR) -I$(WORK_DIR)/include/PR
 
 #Linking outputs
 ELF		= ./build/$(PROJECT).elf
@@ -27,14 +29,14 @@ CP_LD_SCRIPT	= ./build/$(PROJECT)_cp.ld
 LD_DEPS  = $(CP_LD_SCRIPT).d
 
 #Header file list
-HFILES  := $(wildcard src/*.h) $(wildcard include/*.h)
+HFILES  := $(wildcard src/*.h) $(wildcard include/*.h) $(wildcard data/*.h) data/sc1scene/header.h
 
 #Code file list
 ASMFILES   := $(wildcard asm/*.s)
 CODEFILES   := $(wildcard src/*.c)
 CXXFILES    := $(wildcard src/*.cpp)
 #Data file list
-DATAFILES   := $(wildcard data/*.c)
+DATAFILES   := $(wildcard data/*.c) data/sc1scene/model.inc.c
 
 #Path for build artifacts
 OBJPATH		= 	./build/obj
@@ -54,7 +56,7 @@ DATAOBJNAME =   $(notdir $(DATAOBJECTS))
 DATAOBJPATH =   $(addprefix $(OBJPATH)/,$(DATAOBJNAME))
 
 #Bootcode definitions
-BOOT		= /usr/lib/n64/PR/bootcode/boot.6102
+BOOT		= $(WORK_DIR)/lib/n64/PR/bootcode/boot.6102
 BOOT_OBJ	= ./build/obj/boot.6102.o
 
 #Dependency list
@@ -67,11 +69,11 @@ CODESEGMENT =	./build/codesegment.o
 OBJECTS =	$(ASMOBJPATH) $(BOOT_OBJ) $(CODESEGMENT) $(DATAOBJPATH)
 
 #Linker options
-LCINCS =	-I. -I$(ROOT)/usr/include/PR
+LCINCS =	-I. -I$(WORK_DIR)/include -I$(WORK_DIR)/include/PR
 LCOPTS =	-G 0
 LDIRT  =	$(APP) $(TARGETS)
 
-LDFLAGS = -L$(LIB) $(AUDIOLIB) $(N64LIB) -L$(N64_LIBGCCDIR) -lgcc
+LDFLAGS = -L$(LIB) $(AUDIOLIB) $(N64LIB) -L$(N64_LIBGCCDIR) -lgcc -L/opt/crashsdk/mips64-elf/lib -lm
 
 #Default target
 default: $(TARGETS)
@@ -85,17 +87,21 @@ clean:
 -include $(DEPFILES)
 
 #Compile rules
-build/obj/%.o: */%.s | makeDirs
+build/obj/%.o: **/%.s | makeDirs
+	@echo "\e[35mAssembling $<...\e[0m"
+	@$(CC) -MF $(DEPPATH)/$*.d -o $@ $(CFLAGS) $<
+
+build/obj/%.o: **/%.c | makeDirs
 	@echo "\e[35mCompiling $<...\e[0m"
 	@$(CC) -MF $(DEPPATH)/$*.d -o $@ $(CFLAGS) $<
 
-build/obj/%.o: */%.c | makeDirs
-	@echo "\e[35mCompiling $<...\e[0m"
-	@$(CC) -MF $(DEPPATH)/$*.d -o $@ $(CFLAGS) $<
-	
-build/obj/%.o: */%.cpp | makeDirs
+build/obj/%.o: **/%.cpp | makeDirs
 	@echo "\e[35mCompiling $<...\e[0m"
 	@$(CC) -MF $(DEPPATH)/$*.d -o $@ $(CXXFLAGS) $<
+	
+build/obj/%.o: data/sc1scene/%.c | makeDirs
+	@echo "\e[35mCompiling $<...\e[0m"
+	@$(CC) -MF $(DEPPATH)/$*.d -o $@ $(CFLAGS) $<
 
 #Code segment linking rule
 $(CODESEGMENT):	$(CODEOBJPATH)
@@ -110,7 +116,7 @@ $(BOOT_OBJ): $(BOOT) | makeDirs
 #Preprocess linker script
 $(CP_LD_SCRIPT): $(LD_SCRIPT) | makeDirs
 	@echo "\e[35mPreprocessing linkerscript $<...\e[0m"
-	@cpp -MMD -MP -MF $(LD_DEPS) -MMD -MP -MT $@ -MF $@.d -P -Wno-trigraphs -Iinclude -I. -o $@ $<
+	@cpp -DWORK_DIR=$(WORK_DIR) -MMD -MP -MF $(LD_DEPS) -MMD -MP -MT $@ -MF $@.d -P -Wno-trigraphs -Iinclude -I. -o $@ $<
 
 #Generate output ROM
 $(TARGETS) $(APP): $(CP_LD_SCRIPT) $(OBJECTS)

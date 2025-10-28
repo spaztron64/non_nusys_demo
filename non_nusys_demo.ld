@@ -34,15 +34,17 @@ SECTIONS
       /* text */
       build/obj/entry.o(.text);
       build/codesegment.o(.text);
-      /usr/lib/n64/PR/rspboot.o(.text);
-      /usr/lib/n64/PR/gspF3DEX2.fifo.o(.text);
-	  /usr/lib/n64/PR/aspMain.o(.text);
+      WORK_DIR/lib/n64/PR/rspboot.o(.text);
+	  WORK_DIR/ucode/gspF3DEX3_BrZ_NOC.o(.text);
+      /* WORK_DIR/lib/n64/PR/gspF3DEX2.fifo.o(.text); */
+	  WORK_DIR/lib/n64/PR/aspMain.o(.text);
 	  
       /* data */
       build/codesegment.o(.data*);
-      /usr/lib/n64/PR/rspboot.o(.data*);
-      /usr/lib/n64/PR/gspF3DEX2.fifo.o(.data*);
-	  /usr/lib/n64/PR/aspMain.o(.data*);
+      WORK_DIR/lib/n64/PR/rspboot.o(.data*);
+	  WORK_DIR/ucode/gspF3DEX3_BrZ_NOC.o(.data);
+      /* WORK_DIR/lib/n64/PR/gspF3DEX2.fifo.o(.data*); */
+	  WORK_DIR/lib/n64/PR/aspMain.o(.data*);
 	  
       /* rodata */
       build/codesegment.o(.rodata*);
@@ -60,8 +62,22 @@ SECTIONS
    BEGIN_SEG(audio_data, __romPos)
    {
       build/obj/audio_data.o(.data);
+	  . = ALIGN(0x8);
    }
    END_SEG(audio_data)
+   
+   BEGIN_SEG(background_data, 0x02000000)
+   {
+	  build/obj/higu.o(.data);
+	  . = ALIGN(0x8);
+   }
+   END_SEG(background_data)
+   
+   BEGIN_SEG(model_data, 0x03000000){
+	  build/obj/model.inc.o(.data);
+   }
+   END_SEG(model_data)
+   
    /* Discard everything not specifically mentioned above. */
    /DISCARD/ :
    {
