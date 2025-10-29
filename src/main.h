@@ -41,11 +41,12 @@ typedef struct {
 #define CFB2_ADDR (0x80800000-(MAX_SCREEN_WD*MAX_SCREEN_HT*2))
 
 //Define background buffer size
-#define BG_BUF_SIZE	600000
+#define BG_BUF_SIZE	524288
 #define BG_BUF_ADDR (ZBUF_ADDR-BG_BUF_SIZE)
 
 //Size of display list buffer
-#define GLIST_SIZE 16384
+#define GLIST_SIZE 262144
+#define GLIST_ADDR (BG_BUF_ADDR-GLIST_SIZE)
 
 //Size of RSP FIFO for F3DEX2
 #define FIFO_SIZE 8192
@@ -63,7 +64,7 @@ typedef struct {
 //Audio heap definitions
 //Placed immediately before framebuffers in this demo
 #define AUDIO_HEAP_SIZE 0x60000
-#define AUDIO_HEAP_ADDR (BG_BUF_ADDR-AUDIO_HEAP_SIZE)
+#define AUDIO_HEAP_ADDR (GLIST_ADDR-AUDIO_HEAP_SIZE)
 
 //Define Size of audio data buffers
 #define PTR_BUF_SIZE 8192

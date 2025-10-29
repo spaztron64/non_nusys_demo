@@ -1,0 +1,11 @@
+extern Lights1 xiang_Material__402_f3d_001_lights;
+extern Lights1 xiang_Material_f3d_lights;
+extern u64 xiang_xianghua1P_rgba16[];
+extern Vtx xiang_xianghua_mesh_vtx_0[1705];
+extern Gfx xiang_xianghua_mesh_tri_0[];
+extern Vtx xiang_xianghua_mesh_vtx_1[52];
+extern Gfx xiang_xianghua_mesh_tri_1[];
+extern Gfx mat_xiang_Material__402_f3d_001[];
+extern Gfx mat_xiang_Material_f3d[];
+extern Gfx mat_revert_xiang_Material_f3d[];
+extern Gfx xiang_xianghua_mesh[];

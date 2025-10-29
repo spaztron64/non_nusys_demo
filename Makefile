@@ -99,7 +99,7 @@ build/obj/%.o: **/%.cpp | makeDirs
 	@echo "\e[35mCompiling $<...\e[0m"
 	@$(CC) -MF $(DEPPATH)/$*.d -o $@ $(CXXFLAGS) $<
 	
-build/obj/%.o: data/sc1scene/%.c | makeDirs
+build/obj/%.o: data/testcube/%.c | makeDirs
 	@echo "\e[35mCompiling $<...\e[0m"
 	@$(CC) -MF $(DEPPATH)/$*.d -o $@ $(CFLAGS) $<
 

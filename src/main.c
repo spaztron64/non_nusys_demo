@@ -35,7 +35,8 @@ static OSMesg game_msgs[8];
 static OSPiHandle *cart_handle;
 
 //Define display list buffer
-static Gfx glist[GLIST_SIZE];
+//static Gfx glist[GLIST_SIZE];
+Gfx* glist = GLIST_ADDR;
 
 //Define 16-Byte aligned F3DEX2 buffers
 //Define F3DEX2 matrix stack variable
@@ -70,6 +71,76 @@ static const ResolutionParams resolution_table[RES_MODE_COUNT] = {
 };
 
 u16 screen_wd, screen_ht;
+
+Vp sp_viewport;
+
+void prepare_viewport(u16 screen_wd, u16 screen_ht){
+	sp_viewport.vp.vscale[0] = screen_wd * 2;
+	sp_viewport.vp.vscale[1] = screen_ht * 2;
+	sp_viewport.vp.vscale[2] = G_NEW_MAXZ / 2;
+	sp_viewport.vp.vscale[3] = 0;
+	
+	sp_viewport.vp.vtrans[0] = screen_wd * 2;
+	sp_viewport.vp.vtrans[1] = screen_ht * 2;
+	sp_viewport.vp.vtrans[2] = G_NEW_MAXZ / 2;
+	sp_viewport.vp.vtrans[3] = 0;
+}
+
+Mtx projection;
+u16 persp_norm;
+Mtx model_view;
+
+void prepare_projection(){
+	float aspect_ratio = (float)screen_wd / (float)screen_ht;
+	float fov_y = 90.0f;
+	float near = 10.0f;
+	float far = 1000.0f;
+	
+	guPerspective(&projection,
+				  &persp_norm,
+				  fov_y,
+				  aspect_ratio,
+				  near,
+				  far,
+				  1.0f);
+}
+
+void prepare_model_view(){
+	float cam_x = 0.0f, cam_y = 1.0f, cam_z = 0.1f;
+	float look_x = 0.0f, look_y = 0.0f, look_z = 0.0f;
+	float up_x = 0.0f, up_y = 1.0f, up_z = 0.0f;
+	
+	guLookAt(&model_view,
+			 cam_x, cam_y, cam_z,
+			 look_x, look_y, look_z,
+			 up_x, up_y, up_z);
+}
+
+Mtx object_rotx;
+Mtx object_roty;
+Mtx object_pos;
+Mtx object_scale;
+
+void prepare_object_matrix(Gfx **glist_ptr, float x, float y, float z){
+	Gfx *glistp = *glist_ptr;
+	
+	guTranslate(&object_pos,0,0,-100);
+	guRotate(&object_rotx,0,1,0,0);
+	guRotate(&object_roty,0,0,1,0);
+	guScale(&object_scale,1,1,1);
+ 
+	/* apply transformation matrices, to stack */
+	gSPMatrix(glistp++,OS_K0_TO_PHYSICAL(&object_pos),   G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH );
+	gSPMatrix(glistp++,OS_K0_TO_PHYSICAL(&object_rotx), G_MTX_MODELVIEW | G_MTX_MUL  | G_MTX_NOPUSH );
+	gSPMatrix(glistp++,OS_K0_TO_PHYSICAL(&object_roty),  G_MTX_MODELVIEW | G_MTX_MUL  | G_MTX_NOPUSH );
+	gSPMatrix(glistp++,OS_K0_TO_PHYSICAL(&object_scale),  G_MTX_MODELVIEW | G_MTX_MUL  | G_MTX_NOPUSH );
+	
+	//guTranslate(&object_matrix, x, y, z);
+	//gSPMatrix(glistp++, OS_K0_TO_PHYSICAL(&object_matrix),
+	//		  G_MTX_MODELVIEW | G_MTX_MUL | G_MTX_PUSH);
+	
+	*glist_ptr = glistp;
+}
 
 static void idle(void *arg);
 static void main(void *arg);
@@ -414,6 +485,18 @@ static void graphics(void *arg)
 		gDPSetDepthImage(glistp++, ZBUF_ADDR);
 		//Enable drawing to whole screen
 		gDPSetScissor(glistp++, G_SC_NON_INTERLACE, 0, 0, screen_wd, screen_ht);
+		
+		//Prepare matrices
+		prepare_viewport(screen_wd, screen_ht);
+		prepare_projection();
+		prepare_model_view();
+		gSPViewport(glistp++, &sp_viewport);
+		gSPPerspNormalize(glistp++, persp_norm);
+		gSPMatrix(glistp++, OS_K0_TO_PHYSICAL(&projection),
+				  G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+		gSPMatrix(glistp++, OS_K0_TO_PHYSICAL(&model_view),
+				  G_MTX_PROJECTION | G_MTX_LOAD | G_MTX_NOPUSH);
+		gSPLookAt(glistp++, &model_view);
 		//Set up filling rectangles
 		gDPSetCycleType(glistp++, G_CYC_FILL);
 		//Draw background color solid
@@ -426,8 +509,13 @@ static void graphics(void *arg)
 		gDPSetCombineMode(glistp++,G_CC_DECALRGBA, G_CC_DECALRGBA);
 		gDPSetTextureFilter(glistp++, G_TF_BILERP);
 		gSPClearGeometryMode(glistp++,0xFFFFFFFF);
+		gDPSetRenderMode(glistp++,G_RM_ZB_OPA_SURF, G_RM_ZB_OPA_SURF2);
+		gSPSetGeometryMode(glistp++, G_ZBUFFER | G_LIGHTING | G_SHADE | G_SHADING_SMOOTH | G_CULL_BACK | G_CLIPPING);
 		gSPSegment(glistp++, 0x03, OS_K0_TO_PHYSICAL(model_buf));
-		//gSPDisplayList(glistp++, sc1scene_Cube_mesh);
+		//Transform object matrix and draw
+		prepare_object_matrix(&glistp, 0.0f, 0.0f, 0.0f);
+		gSPDisplayList(glistp++, testcube_Cube_mesh);
+		//gSPPopMatrix(glistp++, G_MTX_MODELVIEW);
 		gDPSetCycleType(glistp++, G_CYC_FILL);
 		//Draw square
 		DrawRect(&glistp, game_state.square_pos_x, game_state.square_pos_y, SQUARE_SIZE, SQUARE_SIZE, GPACK_RGBA5551(255, 255, 255, 1), screen_wd, screen_ht);
